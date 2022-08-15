@@ -1,0 +1,6 @@
+venv
+articles
+re_save
+__pycache__
+.idea
+config.py
