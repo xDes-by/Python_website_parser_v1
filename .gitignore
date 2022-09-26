@@ -4,3 +4,4 @@ re_save
 __pycache__
 .idea
 config.py
+parse_base.db
