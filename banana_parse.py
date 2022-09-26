@@ -34,7 +34,7 @@ my_sql_banana = '[index] INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, ' \
                 'time_realize TIME NOT NULL, ' \
                 'published BOOL,' \
                 'can_published BOOL,'\
-                'message_id INTEGER DEFAULT NULL, ' \
+                'message_id INTEGER DEFAULT NULL' \
 
 
 my_sql_util = my_sql.my_sql
@@ -140,32 +140,32 @@ def get_content(articles, article_id, article_name):
     x = articles.get_text(separator='\n')
     text = re.sub(r'\s*([^\n!.?]*?од кат[^!.?]*?[!.?])', '', x)
     time_article_create = datetime.now()
-    time_release = created_time_release(time_article_create)
+    time_release, time_in_table = created_time_release(time_article_create)
     if video:
         print('Видео контент')
         video_link = '/'.join(video.get('src').split('/')[4:])
         keyboard = buttons(time_release, article_id)
-        my_sql_util.table_insert('my_sql_banana', (
-            time_article_create, article_id, 'video_article', None, f'https://youtu.be/{video_link}', None, article_name,
-            None,
-            time_release, False, True))
-        bot.send_message(MY_ID, f'[🍳](https://youtu.be/{video_link}) {article_name}', parse_mode='Markdown',
+        message = bot.send_message(MY_ID, f'[🍳](https://youtu.be/{video_link}) {article_name}', parse_mode='Markdown',
                          reply_markup=keyboard)
+        my_sql_util.table_insert('my_sql_banana', (
+            time_article_create, article_id, 'video_article', None, f'https://youtu.be/{video_link}', None,
+            article_name,
+            None,
+            time_release, False, True, message.message_id))
     else:
         img_count = articles.findAll('img')
-        if len(img_count) == 1 and len(text) < 950:  # max len = 1024
+        if len(img_count) == 1 and len(text) < 1000:  # max len = 1024
             print('Небольшой объем контента')
             for i in img_count:
                 img, local_link = get_img(i, article_id)
                 keyboard = buttons(time_release, article_id)
+                message = bot.send_photo(MY_ID, img, caption=f'🍳 *{article_name}*\n\n{text}', parse_mode='Markdown',
+                               reply_markup=keyboard)
                 my_sql_util.table_insert('my_sql_banana', (
                     time_article_create, article_id, 'small_article', local_link, None, None, article_name, text,
                     time_release,
-                    False, True))
-                bot.send_photo(MY_ID, img, caption=f'🍳 *{article_name}*\n\n{text}', parse_mode='Markdown',
-                               reply_markup=keyboard)
+                    False, True, message.message_id))
         else:
-            pass
             print('Большой объем контента')
             for i in img_count:
                 img, local_link = get_img(i, article_id)
@@ -176,6 +176,7 @@ def get_content(articles, article_id, article_name):
                 except Exception as e:
                     print(f'Тайм-аут имгур!? {e}')
                     my_sql_util.table_delete('my_sql_banana', article_id)
+                    cron.TIME_PUBLISH.insert(0, time_in_table)
                     shutil.rmtree(f'articles/banana/{article_id}')
                     print(f'Новость {article_id} удалена')
                     return
@@ -186,11 +187,12 @@ def get_content(articles, article_id, article_name):
             response = telegraph.create_page(f'{article_name}', html_content=f'{content}')
             news = 'https://telegra.ph/{}'.format(response['path'])
             keyboard = buttons(time_release, article_id)
+            message = bot.send_message(MY_ID, f'[🍳]({news}) {article_name} ', parse_mode='Markdown',
+                                     reply_markup=keyboard)
             my_sql_util.table_insert('my_sql_banana', (
                 time_article_create, article_id, 'big_article', None, None, news, article_name, None,
                 time_release,
-                False, True))
-            bot.send_message(MY_ID, f'[🍳]({news}) {article_name} ', parse_mode='Markdown', reply_markup=keyboard)
+                False, True, message.message_id))
     print("Ok")
 
 
@@ -224,7 +226,7 @@ def get_img(i, article_id):
 def created_time_release(created_time):
     if not cron.TIME_PUBLISH:
         a = datetime.strptime(created_time.strftime("%m/%d/%Y, %H:%M:%S"), "%m/%d/%Y, %H:%M:%S")
-        return a + timedelta(minutes=randint(2, 2))
+        return a + timedelta(minutes=2)
     for i in cron.TIME_PUBLISH[:]:
         a = created_time.date().strftime("%Y-%m-%d") + " " + i #дата + время из таблицы сегодняшняя!
         int_table_date = re.sub("[^0-9]", "", a)
@@ -233,7 +235,7 @@ def created_time_release(created_time):
         release_time = datetime.strptime(a, "%Y-%m-%d %H:%M")
         if (int(int_now_time) - int(int_table_date)) < 0:
             cron.TIME_PUBLISH.remove(i)
-            return release_time + timedelta(minutes=randint(-7, 7))
+            return release_time + timedelta(minutes=randint(-7, 7)), i
         else:
             cron.TIME_PUBLISH.remove(i)
 

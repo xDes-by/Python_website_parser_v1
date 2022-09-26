@@ -20,10 +20,12 @@ TIME_PUBLISH = [
     '21:00', '21:20', '21:40',
 ]
 
+
 def job():
     for i in my_sql_util.table_get_all():
         if not i[10] and i[11] and datetime.now() > datetime.strptime(i[9], "%Y-%m-%d %H:%M:%S"):
             print(f"Публикую новость № {i[2]}")
+            bot.delete_message(chat_id=config.MY_ID, message_id=i[12])
             article_cron_publish(i)
 
 
