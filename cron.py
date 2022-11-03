@@ -1,7 +1,7 @@
 import time
 import schedule as schedule
 import config
-from banana_parse import Image, bot, datetime, my_sql_util
+from parse import Image, bot, datetime, my_sql_util
 
 TIME_PUBLISH = [
     '08:00', '08:20', '08:40',

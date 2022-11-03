@@ -43,7 +43,7 @@ my_sql_util.create_table('my_sql_banana', my_sql_banana)
 
 def get_site_content(html, site):
     if site == 'banana':
-        print(f'Старт парсинга сайта {site}')
+        print(f'Старт парсинга сайта {site}', datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
         soup = BeautifulSoup(html.read(), 'html.parser')
         items = soup.find_all('div', class_='main_post')  # все новости с первой страницы
         items.pop(0)  # скип первой новости
@@ -79,7 +79,8 @@ def check_name(article_name):
                  'Джинсовые леди', 'Дорогая, я все починил сам!', 'Мы хотим тарелки!', 'Вовремя!', 'Полный Underboob!',
                  'Горячие девушки в латексе и коже', 'Линии загара',
                  'Бесполезные факты', 'Красивые азиатки', 'Микрошортики', 'Пятничные эйрбэги', 'Взрослый юмор',
-                 'Страх и ненависть в социальных сетях', 'Крупный калибр!', 'Селфи в авто!', ' Затяни корсет потуже']
+                 'Страх и ненависть в социальных сетях', 'Крупный калибр!', 'Селфи в авто!', ' Затяни корсет потуже',
+                 'Строительные маразмы', 'Кнопочки', 'Мусорные клады!', 'Свадебные кошмары', 'Раздеваем стюардесс! ']
     for i in ban_names:
         if article_name.find(i) != -1:
             article_name = i
@@ -154,7 +155,7 @@ def get_content(articles, article_id, article_name):
             time_release, False, True, message.message_id))
     else:
         img_count = articles.findAll('img')
-        if len(img_count) == 1 and len(text) < 1000:  # max len = 1024
+        if len(img_count) == 1 and len(text) < 950:  # max len = 1024
             print('Небольшой объем контента')
             for i in img_count:
                 img, local_link = get_img(i, article_id)
@@ -177,6 +178,7 @@ def get_content(articles, article_id, article_name):
                     print(f'Тайм-аут имгур!? {e}')
                     my_sql_util.table_delete('my_sql_banana', article_id)
                     cron.TIME_PUBLISH.insert(0, time_in_table)
+                    print(cron.TIME_PUBLISH)
                     shutil.rmtree(f'articles/banana/{article_id}')
                     print(f'Новость {article_id} удалена')
                     return
@@ -224,20 +226,23 @@ def get_img(i, article_id):
 
 
 def created_time_release(created_time):
-    if not cron.TIME_PUBLISH:
-        a = datetime.strptime(created_time.strftime("%m/%d/%Y, %H:%M:%S"), "%m/%d/%Y, %H:%M:%S")
-        return a + timedelta(minutes=2)
-    for i in cron.TIME_PUBLISH[:]:
-        a = created_time.date().strftime("%Y-%m-%d") + " " + i #дата + время из таблицы сегодняшняя!
-        int_table_date = re.sub("[^0-9]", "", a)
-        str_now_time = created_time.strftime("%Y-%m-%d %H:%M")
-        int_now_time = re.sub("[^0-9]", "", str_now_time)
-        release_time = datetime.strptime(a, "%Y-%m-%d %H:%M")
-        if (int(int_now_time) - int(int_table_date)) < 0:
-            cron.TIME_PUBLISH.remove(i)
-            return release_time + timedelta(minutes=randint(-7, 7)), i
-        else:
-            cron.TIME_PUBLISH.remove(i)
+    try:
+        if not cron.TIME_PUBLISH:
+            a = datetime.strptime(created_time.strftime("%m/%d/%Y, %H:%M:%S"), "%m/%d/%Y, %H:%M:%S")
+            return a + timedelta(minutes=2)
+        for i in cron.TIME_PUBLISH[:]:
+            a = created_time.date().strftime("%Y-%m-%d") + " " + i #дата + время из таблицы сегодняшняя!
+            int_table_date = re.sub("[^0-9]", "", a)
+            str_now_time = created_time.strftime("%Y-%m-%d %H:%M")
+            int_now_time = re.sub("[^0-9]", "", str_now_time)
+            release_time = datetime.strptime(a, "%Y-%m-%d %H:%M")
+            if (int(int_now_time) - int(int_table_date)) < 0:
+                cron.TIME_PUBLISH.remove(i)
+                return release_time + timedelta(minutes=randint(-7, 7)), i
+            else:
+                cron.TIME_PUBLISH.remove(i)
+    except Exception as e:
+        print(e)
 
 
 def parse_site():
